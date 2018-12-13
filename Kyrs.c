@@ -44,6 +44,19 @@ char **input_text(int size)
 
 		}while (check_end_str(str[count_str][len_str]));
 
+		str[count_str][len_str+1] = '\0';
+
+		/*for (int i = 0; i < count_str; i++)
+		{
+			if ((strcmp(str[count_str], str[i]) == 0) && (str[i] != NULL) && (str[count_str] != NULL))
+			{
+				str[count_str] = NULL;
+				printf ("YES");
+				break;
+			}
+		}*/
+
+
 		count_str++;
 		if ((count_str%20 == 0) && (count_str != 0))
 			str = (char**)realloc(str, (count_str+20) * sizeof(char*));
@@ -60,7 +73,10 @@ void print_text (char** text, int size)
 {
 	for (int i = 0; i < size; i++)
 	{
-		printf ("%s ", text[i]);
+		if (text[i] != NULL)
+		{
+			printf ("%s ", text[i]);
+		}
 	}
 	printf ("\n");
 }
@@ -137,20 +153,22 @@ void menu(char** text, int size)
 	}
 }
 
-void check_repeat_str(char** text, int size)
+/*void check_repeat_str(char** text, int size)
 {
-	for (int i = 1; i < size; i++)
-	{
-		for (int j = i-1; j < i; j++)
-		{
-			if (text[i] == text[j])
+	for (int i = 0; i < size-1; i++)
+	{		
+		for (int j = i+1; j < size; j++)
+		{	
+			if (strcasecmp(text[j], text[i]) == 0 && text[i] != NULL && text[j] != NULL)
 			{
+				free (text[i]);
 				text[i] = NULL;
-				free(text[i]);
+				printf ("YES\n");
 			}
 		}
 	}
-}
+	printf ("NO\n");
+}*/
 
 int main()
 {
@@ -163,7 +181,19 @@ int main()
 		size_text++;
 	}
 
-	check_repeat_str(text, size_text);
+//	check_repeat_str(text, size_text);
+	for (int i = 0; i < size_text-1; i++)
+	{		
+		for (int j = i+1; j < size_text; j++)
+		{	
+			if (strcasecmp(text[j], text[i]) == 0 && text[i] != NULL && text[j] != NULL)
+			{
+				free (text[j]);
+				text[j] = NULL;
+				printf ("YES\n");
+			}
+		}
+	}
 
 	menu (text, size_text);
 	print_text (text, size_text);
