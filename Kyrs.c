@@ -92,24 +92,98 @@ void free_memory(char** text, int size)
 
 void upper_str(char** text, int size)
 {
-        printf ("1\n");
+	for (int i = 0; i < size; i++)
+	{
+		for (int j = 0; j < strlen(text[i]); j++)
+		{
+			if (isalpha(text[i][0]))
+				text[i][0] = toupper(text[i][0]);
+			if (text[i][j] == ' ' && isalpha(text[i][j+1]))
+			{
+				text[i][j+1] = toupper(text[i][j+1]);
+			}
+			else
+			{
+				if (text[i][j-1] != ' ' && isalpha(text[i][j]))
+					text[i][j] = tolower(text[i][j]);
+			}
+		}
+	}	
 }
 
 void del_str_2018(char** text, int size)
 {
-        printf ("2\n");
+	char num[5] = "2018";
+	for (int i = 0; i < size; i++)
+	{
+		if (text[i] != NULL && strstr(text[i], num))
+		{
+			free (text[i]);			
+			text[i] = NULL;
+		}
+	}
+}
+
+int cmp(const void** a, const void** b)
+{
+	//return (*(int*)a-*(int*)b);
+	int x = 0;
+	int y = 0;
+	if (*a != NULL && *b != NULL)
+	{
+		char* c = *(char**)a;
+		while (*c != '.')
+		{
+			if (isdigit(*c))
+				x += *c - '0';
+			c++;
+		}
+		c = *(char**)b;
+		while (*c != '.')
+		{
+			if (isdigit(*c))
+				y += *c - '0';
+			c++;
+		}
+		return y - x;
+	}
+	return 0;
 }
 
 void sort_num_str(char** text, int size)
 {
-        printf ("3\n");
+	/*int* mass = (int*)calloc(size, sizeof(int));
+	int sum = 0;
+	for (int i = 0; i < size; i++)
+	{
+		sum = 0;
+		for (int j = 0; j < strlen(text[i]); j++)
+		{
+			if (isdigit(text[i][j]))
+			{
+				sum += text[i][j] - '0';
+			}
+		}
+		mass[i] = sum;
+	}*/
+	qsort(text, size, sizeof(char), cmp);
 }
 
-void print_str_num(char** text, int size)
+void print_str_num(char** text, int size) //strstr попробовать
 {
-        printf ("4\n");
+	for (int i = 0; i < size; i++)
+	{
+		for (int j = 0; j < strlen(text[i]); j++)
+		{
+			if (isdigit(text[i][j]))
+			{
+				printf ("%s ", text[i]);
+				break;
+			}
+		}
+	}
+	printf ("\n");
 }
-
 
 void menu(char** text, int size)
 {
@@ -153,13 +227,13 @@ void menu(char** text, int size)
 	}
 }
 
-/*void check_repeat_str(char** text, int size)
+void check_repeat_str(char** text, int size)
 {
 	for (int i = 0; i < size-1; i++)
 	{		
 		for (int j = i+1; j < size; j++)
 		{	
-			if (strcasecmp(text[j], text[i]) == 0 && text[i] != NULL && text[j] != NULL)
+			if (text[i] != NULL && text[j] != NULL && !strcasecmp(text[j], text[i]))
 			{
 				free (text[i]);
 				text[i] = NULL;
@@ -168,7 +242,7 @@ void menu(char** text, int size)
 		}
 	}
 	printf ("NO\n");
-}*/
+}
 
 int main()
 {
@@ -181,19 +255,7 @@ int main()
 		size_text++;
 	}
 
-//	check_repeat_str(text, size_text);
-	for (int i = 0; i < size_text-1; i++)
-	{		
-		for (int j = i+1; j < size_text; j++)
-		{	
-			if (strcasecmp(text[j], text[i]) == 0 && text[i] != NULL && text[j] != NULL)
-			{
-				free (text[j]);
-				text[j] = NULL;
-				printf ("YES\n");
-			}
-		}
-	}
+	check_repeat_str(text, size_text);
 
 	menu (text, size_text);
 	print_text (text, size_text);
