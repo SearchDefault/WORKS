@@ -73,7 +73,7 @@ public:
 			case Homely:
 				this->attractive = "Homely";
 				break;
-			
+
 			case Handsome:
 				this->attractive = "Handsome";
 				break;
@@ -87,11 +87,11 @@ public:
 				break;
 			}
 		}
-		else // Для Девушки
+		else // for woman
 		{
-			cout << "1) Некрасивая\n";
-			cout << "2) Стремная\n";
-			cout << "3) Невзрачная\n";
+			cout << "1) Plain\n";
+			cout << "2) Funky\n";
+			cout << "3) Homely\n";
 			cout << "4) Красивая\n";
 			cout << "5) Очень Красивая\n";
 			Repeat_2: cin >> num;
@@ -122,16 +122,16 @@ public:
 				break;
 			}
 		}
-		cout << "Персонаж готов\n";
+		cout << "Person is done\n";
 		cout << "--------------------------\n";
 	}
 	void print_person()
 	{
-		cout << "Пол: " << this->sex_pos << endl;
-		cout << "Фамилия: " << this->s_name << endl;
-		cout << "Имя: " << this->name << endl;
-		cout << "Возраст: " << this->age << endl;;
-		cout << "Внешность: " << this->attractive << endl;
+		cout << "Sex: " << this->sex_pos << endl;
+		cout << "SerName: " << this->s_name << endl;
+		cout << "Name: " << this->name << endl;
+		cout << "Age: " << this->age << endl;;
+		cout << "Attractive: " << this->attractive << endl;
 		cout << "--------------------------\n";
 	}
 protected:

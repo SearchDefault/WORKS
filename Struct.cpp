@@ -1,7 +1,6 @@
 #include <iostream>
 #include <stdio.h>
 #include <string>
-#include <fsteram>
 
 using namespace std;
 
@@ -63,3 +62,4 @@ int main()
     fclose (fp);
     return 0;
 }
+
