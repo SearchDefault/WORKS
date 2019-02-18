@@ -54,7 +54,7 @@ void print_in (BOOKS* bk, int n)
 	}
 }
 
-void read_file (int n);
+void read_file (int n)
 {
 	FILE *fp;
 	char name[30];
@@ -87,7 +87,6 @@ void menu (BOOKS* bk, int n)
 	printf ("!==============================!\n");
 	int num;
 	printf ("Enter operation: ");
-	printf ("--------------------------------\n");
 	scanf ("%i", &num);
 	switch (num)
 	{
