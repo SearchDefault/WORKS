@@ -142,7 +142,7 @@ void menu (BOOKS* bk, int n)
 	printf ("Other symb is exit this programm\n");
 	printf ("!==============================!\n");
 	int num;
-	printf ("\033[0;31mEnter operation: \033[0m");
+	printf ("\033[1;31mEnter operation: \033[0m");
 	scanf ("%i", &num);
 	switch (num)
 	{
@@ -180,7 +180,7 @@ void menu (BOOKS* bk, int n)
 int main ()
 {
 	int n;
-	printf ("\033[0;31mEnter mass num: \033[0m");
+	printf ("\033[1;31mEnter mass num: \033[0m");
 	scanf ("%i", &n);
 	BOOKS* bk = new BOOKS[n];
 	menu (bk, n);
