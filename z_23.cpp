@@ -40,6 +40,7 @@ void print_in (BOOKS* bk, int n)
 	if ((fp = fopen (name, "a") ) == NULL)
 	{
 		printf ("\033[1;32mFILE NOT OPEN\033[0m\n");
+		exit (1);
 	}
 	else
 	{
@@ -63,7 +64,10 @@ void read_file (int n)
 	printf ("\033[1;32mEnter Name File for read: \033[0m");
 	scanf ("%s", name);
 	if ( (fp = fopen (name, "r") ) == NULL )
+	{
 		printf ("\033[1;32mFILE NOT OPEN\033[0m");
+		exit(1);
+	}
 	else
 	{
 		while (!feof(fp) && count < n*2 + 2)
@@ -78,7 +82,7 @@ void read_file (int n)
 
 void print_author (BOOKS* bk, int n)
 {
-    int count = 0;
+    int count = 0, id = 0;
     bool flag = false;
     char author[30];
     printf ("\033[1;31mEnter Author Name: \033[0m");
@@ -96,8 +100,9 @@ void print_author (BOOKS* bk, int n)
         }
         if ( !strcmp ( (bk+i) -> author, author ) && count > 0 )
         {
-            printf ("|%-2i|%-10.10s|%-10.10s|%-5i|%-10.10s|%-10.10s|\n", count+1, (bk+i) -> name, (bk+i) -> author, (bk+i) -> year, (bk+i) -> izdat, (bk+i) -> poz_izdat);
+            printf ("|%-2i|%-10.10s|%-10.10s|%-5i|%-10.10s|%-10.10s|\n", id+1, (bk+i) -> name, (bk+i) -> author, (bk+i) -> year, (bk+i) -> izdat, (bk+i) -> poz_izdat);
 			printf ("|--|----------|----------|-----|----------|----------|\n");
+			id++;
         }
     }
     if (!count)
@@ -106,7 +111,7 @@ void print_author (BOOKS* bk, int n)
 
 void print_year (BOOKS* bk, int n)
 {
-    int count = 0, year;
+    int count = 0, year, id = 0;
     bool flag = false;
     printf ("\033[1;31mEnter Year: \033[0m");
     scanf ("%i", &year);
@@ -123,9 +128,9 @@ void print_year (BOOKS* bk, int n)
         }
         if ( (bk+i) -> year > year && count > 0)
         {
-            printf ("|%-2i|%-10.10s|%-10.10s|%-5i|%-10.10s|%-10.10s|\n", count+1, (bk+i) -> name, (bk+i) -> author, (bk+i) -> year, (bk+i) -> izdat, (bk+i) -> poz_izdat);
+            printf ("|%-2i|%-10.10s|%-10.10s|%-5i|%-10.10s|%-10.10s|\n", id+1, (bk+i) -> name, (bk+i) -> author, (bk+i) -> year, (bk+i) -> izdat, (bk+i) -> poz_izdat);
 			printf ("|--|----------|----------|-----|----------|----------|\n");
-            count++;
+            id++;
         }
     }
     if (!count)
