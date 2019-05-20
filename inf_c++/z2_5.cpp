@@ -21,7 +21,7 @@ void BIN::translit ()
 {
 	int num = this->x;
 	bool f = false;
-	
+
 	while ( num != 0 )
 	{
 		if ( (num & 1) && !f)
@@ -30,16 +30,18 @@ void BIN::translit ()
 			printf ( "%i", num & 1 );
 		num = num >> 1;
 	}
-	
+
+	printf ( "\n" );
+
 }
 
 int main(int argc, char** argv) {
-	
+
 	BIN *a = new BIN;
-	
+
 	a -> translit ();
-	
+
 	delete a;
-	
+
 	return 0;
 }

@@ -1,39 +1,40 @@
 #include <iostream>
 #include <cstdio>
 #include <cstring>
-#include <cstdlib> 
+#include <cstdlib>
 
 class VECTOR
 {
 		int x, y, z;
 
 	public:
-	
-	    void set (int x, int y, int z);
-	
+
+	    void set ();
+
 		VECTOR operator + ( VECTOR v2 )
 		{
 			VECTOR tmp;
-	
+
 			tmp.x = this->x + v2.x;
 			tmp.y = this->y + v2.y;
 			tmp.z = this->z + v2.z;
-	
+
 			return tmp;
 		}
 		void print ();
 };
 
-void VECTOR::set (int x, int y, int z)
+void VECTOR::set ()
 {
-    this->x = x;
-    this->y = y;
-    this->z = z;
+    printf ( "Enter vector: " );	
+
+    scanf ( "%i %i %i", &this->x, &this->y, &this->z );
+
 }
 
 void VECTOR::print ()
 {
-	printf ( "Vector: x = %i y = %i z = %i", this->x, this->y, this->z );
+	printf ( "Vector: x = %i y = %i z = %i\n", this->x, this->y, this->z );
 }
 
 int main(int argc, char** argv) {
@@ -42,9 +43,9 @@ int main(int argc, char** argv) {
 	VECTOR v2;
 	VECTOR v3;
 	
-	v1.set (10, 10, 10);
-	v2.set (20, 20, 20);
-	v3.set (0, 0, 0);
+	v1.set ();
+	v2.set ();
+	v3.set ();
 	
 	v3 = v1 + v2;
 	
