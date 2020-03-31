@@ -23,21 +23,20 @@ main ( int argv, char** argc )
     win.setVerticalSyncEnabled ( true );
 
     //CONTENT
-    Content* content;
-    content -> Load ();
+    Content content;
+    content.Load ();
 
     //GAME
-    static Game* game;
+    Game game();
 
     //NEW PLAYER
-    //Person player ( &win );
+    //Person player ( win );
 
     //LOOP BEFORE WINDOW IS CLOSED
     while ( win.isOpen () )
     {
         time = clock.getElapsedTime ().asMilliseconds ();
         clock.restart ();
-        game = new Game ();
 
         sf::Event event;
 
@@ -48,11 +47,9 @@ main ( int argv, char** argc )
                 win.close ();
         }
 
-        game.Update ();
+        //game.Update ();
 
         win.clear ();
-
-        game -> Draw ( &win );
 
         //player.update ( time );
         //player.draw ();

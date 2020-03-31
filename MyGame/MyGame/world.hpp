@@ -1,5 +1,7 @@
 //SFML LIB
 #include <SFML/Graphics.hpp>
+#include <SFML/Graphics/Drawable.hpp>
+#include <SFML/Graphics/Transformable.hpp>
 
 //STANDART LIB
 #include <string>

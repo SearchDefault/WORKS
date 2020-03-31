@@ -3,7 +3,7 @@
 
 Game :: Game ()
 {
-    this -> world = new World ();
+    this -> world = new World;
 }
 
 void Game :: Update ()
@@ -11,12 +11,7 @@ void Game :: Update ()
 
 }
 
-void Game :: Draw ( sf::Window *win )
-{
-    win -> Draw ( world );
-}
-
-void Draw ( sf::RenderTarget target, sf::RenderStates states )
+virtual void Game::draw ( sf::RenderTarget target, sf::RenderStates states ) const
 {
     for ( int i = 0; i < WORLD_SIZE; i++ )
     {

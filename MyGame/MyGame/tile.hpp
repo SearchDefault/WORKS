@@ -16,5 +16,5 @@ class Tile
         Tile ();
 
     protected:
-        TileType* type = TileType::NONE;
+        TileType type = TileType::NONE;
 };
