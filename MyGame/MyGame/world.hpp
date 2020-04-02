@@ -17,6 +17,6 @@ class World : public sf::Transformable, sf::Drawable
     public:
         World ();
 
-    protected:
-        Chunk** chunks;
+    //protected:
+        Chunk[WORLD_SIZE][WORLD_SIZE] chunks;
 };

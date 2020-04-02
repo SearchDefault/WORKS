@@ -14,7 +14,7 @@ class Game : public sf::Transformable, sf::Drawable
     public:
         Game ();
         void Update ();
-        virtual void draw ( sf::RenderTarget& target, sf::RenderStates states ) const;
+        void draw ( sf::RenderTarget& target, sf::RenderStates states );
 
     protected:
         World* world;

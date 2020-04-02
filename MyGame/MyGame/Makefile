@@ -1,6 +1,6 @@
 ####MAKE FILE###
 
-all: main.o person.o ##END LINKED##
+all: main.o person.o content.o game.o world.o chunk.o tile.o ##END LINKED##
 	g++ content.o tile.o chunk.o world.o game.o person.o main.o -lsfml-graphics -lsfml-system -lsfml-window -o main
 
 main.o: main.cpp ##BINARY FILE##
