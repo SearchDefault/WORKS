@@ -3,9 +3,6 @@
 #include <SFML/Graphics/Drawable.hpp>
 #include <SFML/Graphics/Transformable.hpp>
 
-//STANDART LIB
-#include <string>
-
 //INCLUDE TILE
 #include "tile.hpp"
 
@@ -16,7 +13,6 @@ class Chunk
 {
     public:
         Chunk ();
-
-    protected:
+        
         Tile** tiles;
 };

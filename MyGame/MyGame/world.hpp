@@ -3,9 +3,6 @@
 #include <SFML/Graphics/Drawable.hpp>
 #include <SFML/Graphics/Transformable.hpp>
 
-//STANDART LIB
-#include <string>
-
 //INCLUDE CHUNK CLASS
 #include "chank.hpp"
 
@@ -16,7 +13,7 @@ class World : public sf::Transformable, sf::Drawable
 {
     public:
         World ();
+        void draw ( sf::RenderTarget& target, sf::RenderStates states ) const;
 
-    //protected:
-        Chunk[WORLD_SIZE][WORLD_SIZE] chunks;
+        Chunk** chunks;
 };
