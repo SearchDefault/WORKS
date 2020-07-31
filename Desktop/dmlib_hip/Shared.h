@@ -1,1 +1,0 @@
-int someSecretFunctionPrototype(int a);
