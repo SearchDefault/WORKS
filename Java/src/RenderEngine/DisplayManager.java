@@ -4,7 +4,6 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
-import org.lwjgl.system.CallbackI;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.IntBuffer;
@@ -69,6 +68,18 @@ public class DisplayManager {
         glfwSwapBuffers( this.winID );
     }
 
+    public void showFPS () {
+        this.currentTime = glfwGetTime();
+        this.frameCount++;
+
+        if ( this.currentTime - this.previousTime >= 1.0d ) {
+            System.out.println( this.frameCount );
+
+            this.frameCount = 0;
+            this.previousTime = this.currentTime;
+        }
+    }
+
     public void deleteDisplay() {
         glfwDestroyWindow( this.winID );
     }
@@ -109,4 +120,9 @@ public class DisplayManager {
     private String title =  "Game Window";
     private long winID;
     private GLFWVidMode videoMode;
+
+    //FPS
+    private int frameCount = 0;
+    private double currentTime;
+    private double previousTime = glfwGetTime();
 }
