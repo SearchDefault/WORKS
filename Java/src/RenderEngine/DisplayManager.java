@@ -27,10 +27,10 @@ public class DisplayManager {
         this.winID = glfwCreateWindow( this.width, this.height, this.title, 0, 0 );
 
         try ( MemoryStack stack = MemoryStack.stackPush() ) {
-                    this.bufferWidth = BufferUtils.createIntBuffer( 1 );
-                    this.bufferHeight = BufferUtils.createIntBuffer( 1 );
+            this.bufferWidth = BufferUtils.createIntBuffer( 1 );
+            this.bufferHeight = BufferUtils.createIntBuffer( 1 );
 
-                    glfwGetWindowSize( this.winID, this.bufferWidth, this.bufferWidth );
+            glfwGetWindowSize( this.winID, this.bufferWidth, this.bufferWidth );
         }
         catch ( Exception e ) {
             System.err.println( "[Log Error]: Buffered With and Height not created!" );
