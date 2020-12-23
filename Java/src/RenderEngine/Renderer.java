@@ -14,6 +14,6 @@ public class Renderer {
         glEnableVertexAttribArray( 0 );
         glDrawElements( GL_TRIANGLES, model.getVertexCount(), GL_UNSIGNED_INT, 0 );
         glDisableVertexAttribArray( 0 );
-        glBindVertexArray( model.getVaoID() );
+        glBindVertexArray( 0 );
     }
 }

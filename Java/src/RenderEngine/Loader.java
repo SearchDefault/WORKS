@@ -18,7 +18,7 @@ public class Loader {
         int vaoID = this.createVAO();
         bindIndicesBuffer ( indices );
         storeDataInAttributeList( 0, positions );
-        unbindVAO( vaoID );
+        unbindVAO();
 
         return new RawModel( vaoID, indices.length );
     }
@@ -48,17 +48,17 @@ public class Loader {
         FloatBuffer buffer = storeDataInFloatBuffer( data );
         glBufferData( GL_ARRAY_BUFFER, buffer, GL_STATIC_DRAW );
         glVertexAttribPointer( attribNumber, 3, GL_FLOAT, false, 0, 0 );
-        glBindBuffer( GL_ARRAY_BUFFER, vboID );
+        glBindBuffer( GL_ARRAY_BUFFER, 0 );
     }
 
-    private void unbindVAO ( int vaoID ) {
-        glBindVertexArray( vaoID );
+    private void unbindVAO () {
+        glBindVertexArray( 0 );
     }
 
     private void bindIndicesBuffer ( int[] indices ) {
-        int vboID = glCreateBuffers();
-        vbos.add( vboID );
-        glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, vboID );
+        int iboID = glCreateBuffers();
+        //vbos.add( vboID );
+        glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, iboID );
         IntBuffer buffer = storeDataInIntBuffer( indices );
         glBufferData( GL_ELEMENT_ARRAY_BUFFER, buffer, GL_STATIC_DRAW );
     }

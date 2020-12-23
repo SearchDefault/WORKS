@@ -1,6 +1,8 @@
 // Main Engine Package //
 package RenderEngine;
 
+import Shaders.StaticShader;
+
 /**
  * ## This Render Engine produced ##
  * ## By Search Default ##
@@ -17,6 +19,7 @@ public class Main {
 
         Loader loader = new Loader();
         Renderer renderer = new Renderer();
+        StaticShader shader = new StaticShader();
 
         //Positions
         float[] vertices = {
@@ -35,13 +38,14 @@ public class Main {
 
         while ( !mainWindow.isCloseRequest() ) {
             renderer.prepare();
-
+            shader.start();
             renderer.render( model );
-
+            shader.stop();
             mainWindow.showFPS();
             mainWindow.updateDisplay();
         }
 
+        shader.cleanUP();
         loader.cleanUP();
         mainWindow.deleteDisplay();
     }
