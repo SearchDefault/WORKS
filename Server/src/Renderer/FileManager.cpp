@@ -7,11 +7,15 @@ FileManager::FileManager ( std::string path )
 
 FileManager::~FileManager ()
 {
-    file.close ();
+    if ( file.is_open () )
+        file.close ();
 }
 
 bool FileManager::Open ( std::string path )
 {
+    if ( file.is_open () )
+        file.close ();
+    
     this -> path = path;
     file.open ( path, std::fstream::in | std::fstream::out | std::fstream::app );
     
@@ -45,9 +49,7 @@ std::vector<std::string> FileManager::ReadInFile ()
             file >> str;
             data.push_back ( str );
         }
-        
         return data;
     }
-    
     return data;
 }

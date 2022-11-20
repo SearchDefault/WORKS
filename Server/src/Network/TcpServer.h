@@ -77,7 +77,7 @@ public:
             uint thread_count = std::thread::hardware_concurrency()
             );
 
-  ~TcpServer();
+  virtual ~TcpServer();
 
   //! Set client handler
   void setHandler(handler_function_t handler);

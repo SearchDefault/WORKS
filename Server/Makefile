@@ -5,7 +5,7 @@ SOURCES =  $(SRC_DIR)/main.cpp
 SOURCES += $(SRC_DIR)/ImGUI/imgui.cpp $(SRC_DIR)/ImGUI/imgui_demo.cpp $(SRC_DIR)/ImGUI/imgui_draw.cpp $(SRC_DIR)/ImGUI/imgui_tables.cpp $(SRC_DIR)/ImGUI/imgui_widgets.cpp
 SOURCES += $(SRC_DIR)/Backends/imgui_impl_sdl.cpp $(SRC_DIR)/Backends/imgui_impl_opengl3.cpp
 SOURCES += $(SRC_DIR)/ImPlot/implot.cpp $(SRC_DIR)/ImPlot/implot_items.cpp $(SRC_DIR)/ImPlot/implot_demo.cpp
-SOURCES += $(SRC_DIR)/Network/TcpServer.cpp $(SRC_DIR)/Network/TcpClient.cpp $(SRC_DIR)/Network/TcpServerClient.cpp ##Delete TcpClient MB
+SOURCES += $(SRC_DIR)/Network/TcpServer.cpp $(SRC_DIR)/Network/TcpServerClient.cpp ##$(SRC_DIR)/Network/TcpClient.cpp ##Delete TcpClient MB
 SOURCES += $(SRC_DIR)/Renderer/Renderer.cpp $(SRC_DIR)/Renderer/FileManager.cpp
 
 OBJS = $(addsuffix .o, $(basename $(notdir $(SOURCES))))
@@ -41,32 +41,32 @@ endif
 ##---------------------------------------------------------------------
 
 
-%.o:$(SRC_DIR)/Backends/%.cpp $(SRC_DIR)/Backends/%.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+%.o:$(SRC_DIR)/Backends/%.cpp
+	$(CXX) $(CXXFLAGS) -g -c -o $@ $<
 
-%.o:$(SRC_DIR)/ImGUI/%.cpp $(SRC_DIR)/ImGUI/%.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+%.o:$(SRC_DIR)/ImGUI/%.cpp
+	$(CXX) $(CXXFLAGS) -g -c -o $@ $<
 	
-%.o:$(SRC_DIR)/ImPlot/%.cpp $(SRC_DIR)/ImPlot/%.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+%.o:$(SRC_DIR)/ImPlot/%.cpp
+	$(CXX) $(CXXFLAGS) -g -c -o $@ $<
 
-%.o:$(SRC_DIR)/Network/%.cpp $(SRC_DIR)/Network/%.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+%.o:$(SRC_DIR)/Network/%.cpp
+	$(CXX) $(CXXFLAGS) -g -c -o $@ $<
 
-%.o:$(SRC_DIR)/Renderer/%.cpp $(SRC_DIR)/Renderer/%.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+%.o:$(SRC_DIR)/Renderer/%.cpp
+	$(CXX) $(CXXFLAGS) -g -c -o $@ $<
 
 %.o:%.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -g -c -o $@ $<
 	
 %.o:$(SRC_DIR)/%.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -g -c -o $@ $<
 	
 all: $(EXE)
 	@echo Build complete for $(ECHO_MESSAGE)
 
 $(EXE): $(OBJS)
-	$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
+	$(CXX) -g -o $@ $^ $(CXXFLAGS) $(LIBS)
 
 clean:
 	rm -f $(EXE) $(OBJS)

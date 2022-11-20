@@ -7,19 +7,23 @@
 #include <sys/socket.h>
 #endif
 
-
-#include <cstdint>
-#include <cstring>
-#include <cinttypes>
-#include <malloc.h>
-
+#include <iostream>
 #include <queue>
-#include <vector>
-#include <functional>
 #include <thread>
+#include <chrono>
 #include <mutex>
-#include <condition_variable>
+#include <future>
+#include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
+#include <any>
+#include <cassert>
 #include <atomic>
+#include <functional>
+#include <cstring>
+#include <string>
+#include <map>
+#include <vector>
 
 /// Sipmple TCP
 namespace stcp {
@@ -46,80 +50,195 @@ enum class SocketStatus : uint8_t {
   disconnected = 4
 };
 
-/// Simple thread pool implementation
-class ThreadPool {
-  std::vector<std::thread> thread_pool;
-  std::queue<std::function<void()>> job_queue;
-  std::mutex queue_mtx;
-  std::condition_variable condition;
-  std::atomic<bool> pool_terminated = false;
+enum class TaskStatus {
+    in_q,
+    completed
+};
 
-  void setupThreadPool(uint thread_count) {
-    thread_pool.clear();
-    for(uint i = 0; i < thread_count; ++i)
-      thread_pool.emplace_back(&ThreadPool::workerLoop, this);
-  }
-
-  void workerLoop() {
-    std::function<void()> job;
-    while (!pool_terminated) {
-      {
-        std::unique_lock lock(queue_mtx);
-        condition.wait(lock, [this](){return !job_queue.empty() || pool_terminated;});
-        if(pool_terminated) return;
-        job = job_queue.front();
-        job_queue.pop();
-      }
-      job();
-    }
-  }
+class Task {
 public:
-  ThreadPool(uint thread_count = std::thread::hardware_concurrency()) {setupThreadPool(thread_count);}
+    template <typename FuncRetType, typename ...Args, typename ...FuncTypes>
+    Task(FuncRetType(*func)(FuncTypes...), Args&&... args) :
+        is_void{ std::is_void_v<FuncRetType> } {
 
-  ~ThreadPool() {
-    pool_terminated = true;
-    join();
-  }
-
-  template<typename F>
-  void addJob(F job) {
-    if(pool_terminated) return;
-    {
-      std::unique_lock lock(queue_mtx);
-      job_queue.push(std::function<void()>(job));
+        if constexpr (std::is_void_v<FuncRetType>) {
+            void_func = std::bind(func, args...);
+            any_func = []()->int { return 0; };
+        }
+        else {
+            void_func = []()->void {};
+            any_func = std::bind(func, args...);
+        }
     }
-    condition.notify_one();
-  }
+    
+    template <typename Func>
+    Task(Func func) :
+        is_void{ true } {
 
-  template<typename F, typename... Arg>
-  void addJob(const F& job, const Arg&... args) {addJob([job, args...]{job(args...);});}
+        void_func = std::bind(func);
+        any_func = []()->int { return 0; };
+    }
 
-  void join() {for(auto& thread : thread_pool) thread.join();}
+    void operator() () {
+        void_func();
+        any_func_result = any_func();
+    }
 
-  uint getThreadCount() const {return thread_pool.size();}
+    bool has_result() {
+        return !is_void;
+    }
 
-  void dropUnstartedJobs() {
-    pool_terminated = true;
-    join();
-    pool_terminated = false;
-    // Clear jobs in queue
-    std::queue<std::function<void()>> empty;
-    std::swap(job_queue, empty);
-    // reset thread pool
-    setupThreadPool(thread_pool.size());
-  }
+    std::any get_result() const {
+        assert(!is_void);
+        assert(any_func_result.has_value());
+        return any_func_result;
+    }
 
-  void stop() {
-    pool_terminated = true;
-    join();
-  }
+private:
+    std::function<void()> void_func;
+    std::function<std::any()> any_func;
+    std::any any_func_result;
+    bool is_void;
+};
 
-  void start(uint thread_count = std::thread::hardware_concurrency()) {
-    if(!pool_terminated) return;
-    pool_terminated = false;
-    setupThreadPool(thread_count);
-  }
+struct TaskInfo {
+    TaskStatus status = TaskStatus::in_q;
+    std::any result;
+};
 
+
+class ThreadPool {
+public:
+    ThreadPool(const uint32_t num_threads) {
+        threads.reserve(num_threads);
+        for (uint32_t i = 0; i < num_threads; ++i) {
+            threads.emplace_back(&ThreadPool::run, this);
+        }
+    }
+
+    template <typename Func, typename ...Args, typename ...FuncTypes>
+    uint64_t add_task(Func(*func)(FuncTypes...), Args&&... args) {
+
+        const uint64_t task_id = last_idx++;
+
+        std::unique_lock<std::mutex> lock(tasks_info_mtx);
+        tasks_info[task_id] = TaskInfo();
+        lock.unlock();
+
+        std::lock_guard<std::mutex> q_lock(q_mtx);
+        q.emplace(Task(func, std::forward<Args>(args)...), task_id);
+        q_cv.notify_one();
+        return task_id;
+    }
+    
+    template <typename Func>
+    uint64_t add_task(Func func) {
+
+        const uint64_t task_id = last_idx++;
+
+        std::unique_lock<std::mutex> lock(tasks_info_mtx);
+        tasks_info[task_id] = TaskInfo();
+        lock.unlock();
+
+        std::lock_guard<std::mutex> q_lock(q_mtx);
+        q.emplace(Task(func), task_id);
+        q_cv.notify_one();
+        return task_id;
+    }
+
+    void wait(const uint64_t task_id) {
+        std::unique_lock<std::mutex> lock(tasks_info_mtx);
+        tasks_info_cv.wait(lock, [this, task_id]()->bool {
+            return task_id < last_idx && tasks_info[task_id].status == TaskStatus::completed;
+        });
+    }
+
+    std::any wait_result(const uint64_t task_id) {
+        std::unique_lock<std::mutex> lock(tasks_info_mtx);
+        tasks_info_cv.wait(lock, [this, task_id]()->bool {
+            return task_id < last_idx && tasks_info[task_id].status == TaskStatus::completed;
+        });
+        return tasks_info[task_id].result;
+    }
+
+    template<class T>
+    void wait_result(const uint64_t task_id, T& value) {
+        std::unique_lock<std::mutex> lock(tasks_info_mtx);
+        tasks_info_cv.wait(lock, [this, task_id]()->bool {
+            return task_id < last_idx && tasks_info[task_id].status == TaskStatus::completed;
+        });
+        value = std::any_cast<T>(tasks_info[task_id].result);
+    }
+
+    void wait_all() {
+        std::unique_lock<std::mutex> lock(tasks_info_mtx);
+        wait_all_cv.wait(lock, [this]()->bool { return cnt_completed_tasks == last_idx; });
+    }
+
+    bool calculated(const uint64_t task_id) {
+        std::lock_guard<std::mutex> lock(tasks_info_mtx);
+        return task_id < last_idx&& tasks_info[task_id].status == TaskStatus::completed;
+    }
+    
+    uint32_t get_thread_count () { return threads.size (); }
+
+    ~ThreadPool() {
+        quite = true;
+        q_cv.notify_all();
+        for (uint32_t i = 0; i < threads.size(); ++i) {
+            threads[i].join();
+        }
+    }
+
+private:
+    
+    inline void garbage_collector ()
+    {
+        if ( !(cnt_completed_tasks % 1000) )
+            tasks_info.clear ();
+    }
+
+    void run() {
+        while (!quite) {
+            std::unique_lock<std::mutex> lock(q_mtx);
+            q_cv.wait(lock, [this]()->bool { return !q.empty() || quite; });
+
+            if (!q.empty() && !quite) {
+                std::pair<Task, uint64_t> task = std::move(q.front());
+                q.pop();
+                lock.unlock();
+
+                task.first();
+
+                std::lock_guard<std::mutex> lock(tasks_info_mtx);
+                if (task.first.has_result()) {
+                    tasks_info[task.second].result = task.first.get_result();
+                }
+                tasks_info[task.second].status = TaskStatus::completed;
+                ++cnt_completed_tasks;
+                
+                garbage_collector ();
+            }
+            wait_all_cv.notify_all();
+            tasks_info_cv.notify_all(); // notify for wait function
+        }
+    }
+
+    std::vector<std::thread> threads;
+
+    std::queue<std::pair<Task, uint64_t>> q;
+    std::mutex q_mtx;
+    std::condition_variable q_cv;
+
+    std::unordered_map<uint64_t, TaskInfo> tasks_info;
+    std::condition_variable tasks_info_cv;
+    std::mutex tasks_info_mtx;
+
+    std::condition_variable wait_all_cv;
+
+    std::atomic<bool> quite{ false };
+    std::atomic<uint64_t> last_idx{ 0 };
+    std::atomic<uint64_t> cnt_completed_tasks{ 0 };
 };
 
 typedef std::vector<uint8_t> DataBuffer;

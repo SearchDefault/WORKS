@@ -16,13 +16,12 @@ class FileManager
     */
     std::fstream file;
     std::string path;
-    std::vector<std::string> data;
     
 public:
     
     FileManager ( std::string path );
     
-    ~FileManager ();
+    virtual ~FileManager ();
     
     bool Open ( std::string path );
     

@@ -23,7 +23,7 @@ namespace Renderer
     }
 
     void WindowContext::init_all ( void )
-    {      
+    {
         SDL_init ();
         ImGUI_init ();
         ImPlot_init ();
@@ -107,9 +107,12 @@ namespace Renderer
 
     void WindowContext::Server_init ( void )
     {
-        this -> fman = new FileManager ( "data.txt" );
+        this -> fman = std::make_shared<FileManager> ( "002.txt" );
         
-        this -> server = new TcpServer ( 9001,
+        // Create Server Context
+        this -> server = std::unique_ptr<TcpServer> ( new TcpServer (
+            9001,
+            
             {1, 1, 1}, // Keep alive{idle:1s, interval: 1s, pk_count: 1}
 
             [this](DataBuffer data, TcpServer::Client& client){ // Data handler
@@ -151,8 +154,9 @@ namespace Renderer
             },
 
             std::thread::hardware_concurrency() // Thread pool size
-        );
+        ));
         
+        // Try Join the server
         using namespace std::chrono_literals;
         try
         {
@@ -160,8 +164,6 @@ namespace Renderer
             if(server -> start() == TcpServer::status::up) {
                 // std::cout<<"Server listen on port: " << server -> getPort() << std::endl
                 //         <<"Server handling thread pool size: " << server -> getThreadPool().getThreadCount() << std::endl;
-
-                std::thread ( [this](){server -> joinLoop();} ).detach ();
             }
             else
             {
@@ -178,9 +180,6 @@ namespace Renderer
 
     void WindowContext::clean_data  ( void )
     {
-        delete server;
-        delete fman;
-        
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplSDL2_Shutdown();
         ImPlot::DestroyContext();
@@ -219,10 +218,10 @@ namespace Renderer
 
         // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
         if (show_demo_window)
-        ImGui::ShowDemoWindow(&show_demo_window);
+            ImGui::ShowDemoWindow(&show_demo_window);
         
         if (show_plot_window)
-        ImPlot::ShowDemoWindow(&show_plot_window);
+            ImPlot::ShowDemoWindow(&show_plot_window);
 
         // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
         {
@@ -234,7 +233,7 @@ namespace Renderer
                 ImGui::Text("Server is: %s", "Down" );
             
             ImGui::Text("Server listen on port: %d", server -> getPort() );
-            ImGui::Text("Server handling thread pool size: %d", server -> getThreadPool().getThreadCount() );
+            ImGui::Text("Server handling thread pool size: %d", server -> getThreadPool().get_thread_count() );
             
             ImGui::Checkbox("Demo Window", &show_demo_window);
             ImGui::Checkbox("Plot Window", &show_plot_window);
@@ -269,59 +268,163 @@ namespace Renderer
             ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
             
             ImGui::Begin("Data Plot", &show_data_plot);
-            ImGui::Text("Open Data");
-            bool openFile = ImGui::Button("OpenFileData");
+            ImGui::Text("Click to button to open file");
+            
+            // Always center this window when appearing
+            ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+            ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+            
+            bool openFile = false;
+            if ( ImGui::Button ( "Open" ) )
+                ImGui::OpenPopup ( "Open File" );
+            if ( ImGui::BeginPopupModal ( "Open File", NULL, ImGuiWindowFlags_MenuBar ) )
+            {
+                ImGui::Text("Please enter the namefile, like (text.txt)");
+
+                static char fileName[128];
+                ImGui::InputTextWithHint( "<--(Enter File Name)", "enter file name here", fileName, IM_ARRAYSIZE(fileName));
+
+                if ( strlen ( fileName ) != 0 )
+                    fman -> Open ( fileName );
+                
+                if (ImGui::Button("Ok"))
+                {
+                    openFile = true;
+                    ImGui::CloseCurrentPopup();
+                }
+                
+                ImGui::SameLine();
+                
+                if (ImGui::Button("Close"))
+                {
+                    openFile = false;
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
+            
+            static ImVector<ImVec2> _accX;
+            static ImVector<ImVec2> _accY;
+            static ImVector<ImVec2> _accZ;
+            
+            static ImVector<ImVec2> _gyroX;
+            static ImVector<ImVec2> _gyroY;
+            static ImVector<ImVec2> _gyroZ;
+            
             if ( openFile )
             {
                 textData = fman -> ReadInFile ();
                 
-                int32_t device, time;
-                int16_t dataGyroX, dataGyroY, dataGyroZ, dataAccX, dataAccY, dataAccZ;
-                
-                for ( auto it : textData )
+                for ( auto line : textData )
                 {
-                    int num = sscanf ( it.c_str (), "{\"D\":%d,\"T\":%d,\"G\":{\"X\":%hd,\"Y\":%hd,\"Z\":%hd},\"A\":{\"X\":%hd,\"Y\":%hd,\"Z\":%hd}", &device, &time, &dataGyroX, &dataGyroY, &dataGyroZ, &dataAccX, &dataAccY, &dataAccZ );
+                    int32_t device, time;
+                    int16_t dataGyroX, dataGyroY, dataGyroZ, dataAccX, dataAccY, dataAccZ;
+                    //int num = sscanf ( line.c_str (), "{\"D\":%d,\"T\":%d,\"G\":{\"X\":%hd,\"Y\":%hd,\"Z\":%hd},\"A\":{\"X\":%hd,\"Y\":%hd,\"Z\":%hd}", &device, &time, &dataGyroX, &dataGyroY, &dataGyroZ, &dataAccX, &dataAccY, &dataAccZ );
                     
-                    std::cout << it.c_str () << std::endl;
+                    //1T0X-42Y-179Z-179X7308Y898Z10644
+                    int num = sscanf ( line.c_str (), "%dT%dX%hdY%hdZ%hdX%hdY%hdZ%hd", &device, &time, &dataGyroX, &dataGyroY, &dataGyroZ, &dataAccX, &dataAccY, &dataAccZ );
+                    
+                    if ( num == 8 )
+                        if ( device == 1 )
+                        {
+                            _gyroX.push_back ( ImVec2 ( time, dataGyroX ) );
+                            _gyroY.push_back ( ImVec2 ( time, dataGyroY ) );
+                            _gyroZ.push_back ( ImVec2 ( time, dataGyroZ ) );
+                            
+                            _accX.push_back ( ImVec2 ( time, dataAccX ) );
+                            _accY.push_back ( ImVec2 ( time, dataAccY ) );
+                            _accZ.push_back ( ImVec2 ( time, dataAccZ ) );
+                        }
                 }
             }
             
-            ImGui::Text("Data accelerometer and gyroscope");
-            static float history = 5000;
-            ImGui::SliderFloat("History",&history, 1, 10000);
-            
-            static ImPlotAxisFlags flagsX = ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_AutoFit;
-            static ImPlotAxisFlags flagsY = ImPlotAxisFlags_NoTickLabels;
-            
-            if ( ImPlot::BeginPlot("GyroPlot", ImVec2(-1,200)) )
+            if ( ImPlot::BeginPlot("GyroPlot", ImVec2(-1,600)) )
             {
-                ImPlot::SetupAxes(NULL, NULL, flagsX, flagsY);
-                ImPlot::SetupAxisLimits(ImAxis_X1, t - history, t, ImGuiCond_Always);
-                ImPlot::SetupAxisLimits(ImAxis_Y1, -1000, 1000);
+                ImPlot::SetupAxes ( "t, ms", "GyroX, N", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit );
+                ImPlot::SetupAxesLimits(-100, 100, 0, 100000);
                 
-                if ( !gyroX.Data.empty() && !gyroY.Data.empty() && !gyroZ.Data.empty() )
+                ImPlot::SetupAxis ( ImAxis_Y2, "GyroY, N", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
+                ImPlot::SetupAxisLimits(ImAxis_Y2, -200, 200);
+                
+                ImPlot::SetupAxis ( ImAxis_Y3, "GyroZ, N", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
+                ImPlot::SetupAxisLimits(ImAxis_Y3, -200, 200);
+                
+                if ( !_gyroX.empty() && !_gyroY.empty() && !_gyroZ.empty() )
                 {
-                    ImPlot::PlotLine("Gyro X", &gyroX.Data[0].x, &gyroX.Data[0].y, gyroX.Data.size(), 0, 0, 4 * sizeof(int16_t));
-                    ImPlot::PlotLine("Gyro Y", &gyroY.Data[0].x, &gyroY.Data[0].y, gyroY.Data.size(), 0, 0, 4 * sizeof(int16_t));
-                    ImPlot::PlotLine("Gyro Z", &gyroZ.Data[0].x, &gyroZ.Data[0].y, gyroZ.Data.size(), 0, 0, 4 * sizeof(int16_t));
+                    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
+                    ImPlot::PlotLine ( "Gyro X", &_gyroX[0].x, &_gyroX[0].y, _gyroX.size(), 0, 0, sizeof(ImVec2) );
+                    
+                    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
+                    ImPlot::PlotLine ( "Gyro Y", &_gyroY[0].x, &_gyroY[0].y, _gyroY.size(), 0, 0, sizeof(ImVec2) );
+                    
+                    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y3);
+                    ImPlot::PlotLine ( "Gyro Z", &_gyroZ[0].x, &_gyroZ[0].y, _gyroZ.size(), 0, 0, sizeof(ImVec2) );
                 }
                 ImPlot::EndPlot();
             }
             
-            if ( ImPlot::BeginPlot("AccPlot", ImVec2(-1,200)) )
+            if ( ImPlot::BeginPlot("AccPlot", ImVec2(-1,600)) )
             {
-                ImPlot::SetupAxes(NULL, NULL, flagsX, flagsY);
-                ImPlot::SetupAxisLimits(ImAxis_X1, t - history, t, ImGuiCond_Always);
-                ImPlot::SetupAxisLimits(ImAxis_Y1, -1000, 1000);
+                ImPlot::SetupAxes ( "t, ms", "AccX, N", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit );
+                ImPlot::SetupAxesLimits(-100, 100, 0, 100000);
                 
-                if ( !accX.Data.empty() && !accY.Data.empty() && !accZ.Data.empty() )
+                ImPlot::SetupAxis ( ImAxis_Y2, "AccY, N", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
+                ImPlot::SetupAxisLimits(ImAxis_Y2, -200, 200);
+                
+                ImPlot::SetupAxis ( ImAxis_Y3, "AccZ, N", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
+                ImPlot::SetupAxisLimits(ImAxis_Y3, -200, 200);
+                
+                ImPlot::SetupAxesLimits(0, 15000, 0, 100000);
+                if ( !_accX.empty() && !_accY.empty() && !_accZ.empty() )
                 {
-                    ImPlot::PlotLine("Acc X", &accX.Data[0].x, &accX.Data[0].y, accX.Data.size(), 0, 0, 4 * sizeof(int16_t));
-                    ImPlot::PlotLine("Acc Y", &accY.Data[0].x, &accY.Data[0].y, accY.Data.size(), 0, 0, 4 * sizeof(int16_t));
-                    ImPlot::PlotLine("Acc Z", &accZ.Data[0].x, &accZ.Data[0].y, accZ.Data.size(), 0, 0, 4 * sizeof(int16_t));
+                    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
+                    ImPlot::PlotLine ( "Acc X", &_accX[0].x, &_accX[0].y, _accX.size(), 0, 0, sizeof(ImVec2) );
+                    
+                    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
+                    ImPlot::PlotLine ( "Acc Y", &_accY[0].x, &_accY[0].y, _accY.size(), 0, 0, sizeof(ImVec2) );
+                    
+                    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y3);
+                    ImPlot::PlotLine ( "Acc Z", &_accZ[0].x, &_accZ[0].y, _accZ.size(), 0, 0, sizeof(ImVec2) );
                 }
                 ImPlot::EndPlot();
             }
+            
+//             ImGui::Text("Data accelerometer and gyroscope");
+//             static float history = 5000;
+//             ImGui::SliderFloat("History",&history, 1, 10000);
+//             
+//             static ImPlotAxisFlags flagsX = ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_AutoFit;
+//             static ImPlotAxisFlags flagsY = ImPlotAxisFlags_NoTickLabels;
+//             
+//             if ( ImPlot::BeginPlot("GyroPlot", ImVec2(-1,200)) )
+//             {
+//                 ImPlot::SetupAxes(NULL, NULL, flagsX, flagsY);
+//                 ImPlot::SetupAxisLimits(ImAxis_X1, t - history, t, ImGuiCond_Always);
+//                 ImPlot::SetupAxisLimits(ImAxis_Y1, -1000, 1000);
+//                 
+//                 if ( !gyroX.Data.empty() && !gyroY.Data.empty() && !gyroZ.Data.empty() )
+//                 {
+//                     ImPlot::PlotLine("Gyro X", &gyroX.Data[0].x, &gyroX.Data[0].y, gyroX.Data.size(), 0, 0, 2 * sizeof(int16_t));
+//                     ImPlot::PlotLine("Gyro Y", &gyroY.Data[0].x, &gyroY.Data[0].y, gyroY.Data.size(), 0, 0, 2 * sizeof(int16_t));
+//                     ImPlot::PlotLine("Gyro Z", &gyroZ.Data[0].x, &gyroZ.Data[0].y, gyroZ.Data.size(), 0, 0, 2 * sizeof(int16_t));
+//                 }
+//                 ImPlot::EndPlot();
+//             }
+//             
+//             if ( ImPlot::BeginPlot("AccPlot", ImVec2(-1,200)) )
+//             {
+//                 ImPlot::SetupAxes(NULL, NULL, flagsX, flagsY);
+//                 ImPlot::SetupAxisLimits(ImAxis_X1, t - history, t, ImGuiCond_Always);
+//                 ImPlot::SetupAxisLimits(ImAxis_Y1, -1000, 1000);
+//                 
+//                 if ( !accX.Data.empty() && !accY.Data.empty() && !accZ.Data.empty() )
+//                 {
+//                     ImPlot::PlotLine("Acc X", &accX.Data[0].x, &accX.Data[0].y, accX.Data.size(), 0, 0, 2 * sizeof(int16_t));
+//                     ImPlot::PlotLine("Acc Y", &accY.Data[0].x, &accY.Data[0].y, accY.Data.size(), 0, 0, 2 * sizeof(int16_t));
+//                     ImPlot::PlotLine("Acc Z", &accZ.Data[0].x, &accZ.Data[0].y, accZ.Data.size(), 0, 0, 2 * sizeof(int16_t));
+//                 }
+//                 ImPlot::EndPlot();
+//             }
         
             ImGui::End();
         }

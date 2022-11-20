@@ -10,12 +10,6 @@
 #include "../Network/TcpServer.h"
 #include "FileManager.hpp"
 
-// Links Standart library's
-#include <iostream>
-#include <string>
-#include <map>
-#include <vector>
-
 // Links <SDL>
 #include <SDL.h>
 #if defined(IMGUI_IMPL_OPENGL_ES2)
@@ -175,9 +169,12 @@ namespace Renderer
         ImGuiContext* imGUI_context;
         SDL_Event event;
 
-        TcpServer* server;
-        FileManager* fman;
+        // Server
+        std::shared_ptr<TcpServer> server;
 
+        // FileManager
+        std::shared_ptr<FileManager> fman;
+        
         // Logger
         ExampleAppLog log;
         
@@ -200,7 +197,7 @@ namespace Renderer
 
     public:
         WindowContext ();
-        ~WindowContext ();
+        virtual ~WindowContext ();
 
         WindowContext(WindowContext const&) = delete;
         void operator = (WindowContext const&) = delete;

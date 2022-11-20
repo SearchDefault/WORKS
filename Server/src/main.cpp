@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "./Renderer/Renderer.hpp"
 
 int main ( int argv, char** argc )

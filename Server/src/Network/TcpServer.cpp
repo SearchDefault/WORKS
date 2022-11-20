@@ -68,7 +68,6 @@ TcpServer::status TcpServer::start() {
     return _status = status::err_socket_init;
   })
 
-
   // Bind address to socket
   if(flag = true;
      (setsockopt(serv_socket, SOL_SOCKET, SO_REUSEADDR, WIN((char*))&flag, sizeof(flag)) == -1) ||
@@ -78,19 +77,17 @@ TcpServer::status TcpServer::start() {
   if(listen(serv_socket, SOMAXCONN) WIN(== SOCKET_ERROR)NIX(< 0))
     return _status = status::err_socket_listening;
   _status = status::up;
-  thread_pool.addJob([this]{handlingAcceptLoop();});
-  thread_pool.addJob([this]{waitingDataLoop();});
+  
+  thread_pool.add_task([this]{handlingAcceptLoop();});
+  thread_pool.add_task([this]{waitingDataLoop();});
   return _status;
 }
 
 void TcpServer::stop() {
-  thread_pool.dropUnstartedJobs();
   _status = status::close;
   WIN(closesocket)NIX(close)(serv_socket);
   client_list.clear();
 }
-
-void TcpServer::joinLoop() {thread_pool.join();}
 
 bool TcpServer::connectTo(uint32_t host, uint16_t port, con_handler_function_t connect_hndl) {
   Socket client_socket;
@@ -178,7 +175,7 @@ void TcpServer::handlingAcceptLoop() {
   }
 
   if(_status == status::up)
-    thread_pool.addJob([this](){handlingAcceptLoop();});
+    thread_pool.add_task( [this](){handlingAcceptLoop();} );
 }
 
 void TcpServer::waitingDataLoop() {
@@ -189,14 +186,14 @@ void TcpServer::waitingDataLoop() {
       if(client){
         if(DataBuffer data = client->loadData(); !data.empty()) {
 
-          thread_pool.addJob([this, _data = std::move(data), &client]{
+          thread_pool.add_task([this, _data = std::move(data), &client]{
             client->access_mtx.lock();
             handler(std::move(_data), *client);
             client->access_mtx.unlock();
           });
         } else if(client->_status == SocketStatus::disconnected) {
 
-          thread_pool.addJob([this, &client, it]{
+          thread_pool.add_task([this, &client, it]{
             client->access_mtx.lock();
             Client* pointer = client.release();
             client = nullptr;
@@ -211,7 +208,8 @@ void TcpServer::waitingDataLoop() {
   }
 
   if(_status == status::up)
-    thread_pool.addJob([this](){waitingDataLoop();});
+    //thread_pool.addJob([this](){waitingDataLoop();});
+    thread_pool.add_task( [this](){waitingDataLoop();} );
 }
 
 bool TcpServer::enableKeepAlive(Socket socket) {
