@@ -9,6 +9,9 @@
 
 #include "../Network/TcpServer.h"
 #include "FileManager.hpp"
+#include "Kalman.hpp"
+
+#include <cmath>
 
 // Links <SDL>
 #include <SDL.h>
@@ -29,7 +32,8 @@ namespace Renderer
         ImGuiTextFilter     Filter;
         ImVector<int>       LineOffsets; // Index to lines offset. We maintain this with AddLog() calls.
         bool                AutoScroll;  // Keep scrolling if already at the bottom.
-
+        bool                ServerStartStop = false;
+        
         ExampleAppLog()
         {
             AutoScroll = true;
@@ -78,7 +82,7 @@ namespace Renderer
             ImGui::SameLine();
             bool copy = ImGui::Button("Copy");
             ImGui::SameLine();
-            //bool start_stop = ImGui::Button("Start/Stop");
+            ImGui::Checkbox("Start Server", &ServerStartStop);
             ImGui::SameLine();
             Filter.Draw("Filter", -100.0f);
 

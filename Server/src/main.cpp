@@ -2,7 +2,6 @@
 
 int main ( int argv, char** argc )
 {
-    // Создание экземпляра окна
     Renderer::WindowContext window;
 
     // Our state

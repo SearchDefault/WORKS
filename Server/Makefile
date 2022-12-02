@@ -42,31 +42,31 @@ endif
 
 
 %.o:$(SRC_DIR)/Backends/%.cpp
-	$(CXX) $(CXXFLAGS) -g -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 %.o:$(SRC_DIR)/ImGUI/%.cpp
-	$(CXX) $(CXXFLAGS) -g -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 	
 %.o:$(SRC_DIR)/ImPlot/%.cpp
-	$(CXX) $(CXXFLAGS) -g -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 %.o:$(SRC_DIR)/Network/%.cpp
-	$(CXX) $(CXXFLAGS) -g -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 %.o:$(SRC_DIR)/Renderer/%.cpp
-	$(CXX) $(CXXFLAGS) -g -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 %.o:%.cpp
-	$(CXX) $(CXXFLAGS) -g -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 	
 %.o:$(SRC_DIR)/%.cpp
-	$(CXX) $(CXXFLAGS) -g -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
 	
 all: $(EXE)
 	@echo Build complete for $(ECHO_MESSAGE)
 
 $(EXE): $(OBJS)
-	$(CXX) -g -o $@ $^ $(CXXFLAGS) $(LIBS)
+	$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 
 clean:
 	rm -f $(EXE) $(OBJS)

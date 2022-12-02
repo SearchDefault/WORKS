@@ -1,5 +1,7 @@
 #include "Renderer.hpp"
 
+#define RAD_TO_DEG 180/M_PI
+
 namespace Renderer
 {
     std::string getHostStr(const TcpServer::Client& client)
@@ -124,14 +126,9 @@ namespace Renderer
                 int num = sscanf ( reinterpret_cast<char*> ( data.data () ), "{\"D\":%d,\"T\":%d,\"G\":{\"X\":%hd,\"Y\":%hd,\"Z\":%hd},\"A\":{\"X\":%hd,\"Y\":%hd,\"Z\":%hd}", &device, &time, &dataGyroX, &dataGyroY, &dataGyroZ, &dataAccX, &dataAccY, &dataAccZ );
                 
                 //fman -> SaveInFile ( reinterpret_cast<char*> ( data.data () ) );
-                // Debug
-                // std::cout << "Num = " << num << std::endl;
-                // std::cout << data.data () << std::endl;
-                // std::cout << device << " " << time << " " << dataGyroX << " " << dataGyroY << " " << dataGyroZ << " " << dataAccX << " " << dataAccY << " " << dataAccZ << std::endl;
                 
                 if ( num == 8 )
                 {
-                    //t = static_cast<int32_t> ( 0.001f * time );
                     t = 0.001f * time;
                     gyroX.AddPoint ( t, dataGyroX );
                     gyroY.AddPoint ( t, dataGyroY );
@@ -155,27 +152,6 @@ namespace Renderer
 
             std::thread::hardware_concurrency() // Thread pool size
         ));
-        
-        // Try Join the server
-        using namespace std::chrono_literals;
-        try
-        {
-            //Start server
-            if(server -> start() == TcpServer::status::up) {
-                // std::cout<<"Server listen on port: " << server -> getPort() << std::endl
-                //         <<"Server handling thread pool size: " << server -> getThreadPool().getThreadCount() << std::endl;
-            }
-            else
-            {
-                std::cout<<"Server start error! Error code:"<< int(server -> getStatus()) <<std::endl;
-                exit ( EXIT_FAILURE );
-            }
-
-        } catch(std::exception& except)
-        {
-            std::cerr << except.what();
-            exit ( EXIT_FAILURE );
-        }
     }
 
     void WindowContext::clean_data  ( void )
@@ -203,6 +179,8 @@ namespace Renderer
             if (event.type == SDL_QUIT)
                 done = true;
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
+                done = true;
+            if ( ( event.key.keysym.mod & KMOD_LCTRL ) && event.key.keysym.sym == SDLK_q )
                 done = true;
         }
     }
@@ -253,10 +231,33 @@ namespace Renderer
         {
             ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
             ImGui::Begin("Logger", &show_logger);
-    
-            //Empty
-        
             ImGui::End();
+            
+            if ( log.ServerStartStop && server -> getStatus() == TcpServer::status::close )
+            {
+                using namespace std::chrono_literals;
+                try
+                {
+                    //Start server
+                    if(server -> start() == TcpServer::status::up) {
+                        // std::cout<<"Server listen on port: " << server -> getPort() << std::endl
+                        //         <<"Server handling thread pool size: " << server -> getThreadPool().getThreadCount() << std::endl;
+                    }
+                    else
+                    {
+                        std::cout<<"Server start error! Error code:"<< int(server -> getStatus()) <<std::endl;
+                        exit ( EXIT_FAILURE );
+                    }
+
+                } catch(std::exception& except)
+                {
+                    std::cerr << except.what();
+                    exit ( EXIT_FAILURE );
+                }
+            }
+            
+            if ( !log.ServerStartStop && server -> getStatus() == TcpServer::status::up )
+                server -> stop ();
 
             // Actually call in the regular Log helper (which will Begin() into the same window as we just did)
             log.Draw("Logger", &show_logger);
@@ -274,20 +275,28 @@ namespace Renderer
             ImVec2 center = ImGui::GetMainViewport()->GetCenter();
             ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
             
+            static float _low = 0.3f, _hight = 0.45f;
+            static int ampl = 4.0;
+            ImGui::InputFloat("low", &_low, -1.0f, 1.0f, "%.3f");
+            ImGui::InputFloat("hight", &_hight, -1.0f, 1.0f, "%.3f");
+            ImGui::InputInt("ampl", &ampl, 0, 10);
+            
             bool openFile = false;
             if ( ImGui::Button ( "Open" ) )
                 ImGui::OpenPopup ( "Open File" );
-            if ( ImGui::BeginPopupModal ( "Open File", NULL, ImGuiWindowFlags_MenuBar ) )
+            if ( ImGui::BeginPopupModal ( "Open File", NULL, ImGuiWindowFlags_AlwaysAutoResize ) )
             {
                 ImGui::Text("Please enter the namefile, like (text.txt)");
 
+                ImGui::Separator();
+                
                 static char fileName[128];
-                ImGui::InputTextWithHint( "<--(Enter File Name)", "enter file name here", fileName, IM_ARRAYSIZE(fileName));
-
-                if ( strlen ( fileName ) != 0 )
+                if ( ImGui::InputTextWithHint( "(<--Take Enter to apply changes)", "enter file name here", fileName, IM_ARRAYSIZE(fileName), ImGuiInputTextFlags_EnterReturnsTrue ) )
                     fman -> Open ( fileName );
                 
-                if (ImGui::Button("Ok"))
+                ImGui::Separator();
+                
+                if (ImGui::Button("Ok", ImVec2(220, 20)))
                 {
                     openFile = true;
                     ImGui::CloseCurrentPopup();
@@ -295,11 +304,9 @@ namespace Renderer
                 
                 ImGui::SameLine();
                 
-                if (ImGui::Button("Close"))
-                {
-                    openFile = false;
+                if (ImGui::Button("Close", ImVec2(220, 20)))
                     ImGui::CloseCurrentPopup();
-                }
+                    
                 ImGui::EndPopup();
             }
             
@@ -311,14 +318,34 @@ namespace Renderer
             static ImVector<ImVec2> _gyroY;
             static ImVector<ImVec2> _gyroZ;
             
+            static ImVector<ImVec2> visual;
+            
             if ( openFile )
             {
                 textData = fman -> ReadInFile ();
+                
+                if ( !visual.empty () )
+                    visual.clear ();
+                
+                if ( !_gyroX.empty () || !_gyroY.empty () || !_gyroZ.empty () )
+                {
+                    _gyroX.clear ();
+                    _gyroY.clear ();
+                    _gyroZ.clear ();
+                }
+                
+                if ( !_accX.empty () || !_accY.empty () || !_accZ.empty () )
+                {
+                    _accX.clear ();
+                    _accY.clear ();
+                    _accZ.clear ();
+                } 
                 
                 for ( auto line : textData )
                 {
                     int32_t device, time;
                     int16_t dataGyroX, dataGyroY, dataGyroZ, dataAccX, dataAccY, dataAccZ;
+                    float fdataAccX, fdataAccY, fdataAccZ;
                     //int num = sscanf ( line.c_str (), "{\"D\":%d,\"T\":%d,\"G\":{\"X\":%hd,\"Y\":%hd,\"Z\":%hd},\"A\":{\"X\":%hd,\"Y\":%hd,\"Z\":%hd}", &device, &time, &dataGyroX, &dataGyroY, &dataGyroZ, &dataAccX, &dataAccY, &dataAccZ );
                     
                     //1T0X-42Y-179Z-179X7308Y898Z10644
@@ -327,63 +354,325 @@ namespace Renderer
                     if ( num == 8 )
                         if ( device == 1 )
                         {
+                            if ( dataGyroX > 32768 )
+                                dataGyroX -= 65535;
+                            dataGyroX /= 65.5;
+                            
+                            if ( dataGyroY > 32768 )
+                                dataGyroY -= 65535;
+                            dataGyroY /= 65.5;
+                            
+                            if ( dataGyroZ > 32768 )
+                                dataGyroZ -= 65535;
+                            dataGyroZ /= 65.5;
+                            
+                            if ( dataAccX > 32768 )
+                                dataAccX -= 65535;
+                            fdataAccX = static_cast<float> ( dataAccX ) / 8192;
+                            
+                            if ( dataAccY > 32768 )
+                                dataAccY -= 65535;
+                            fdataAccY = static_cast<float> ( dataAccY ) / 8192;
+                            
+                            if ( dataAccZ > 32768 )
+                                dataAccZ -= 65535;
+                            fdataAccZ = static_cast<float> ( dataAccZ ) / 8192;
+                            
+                            time /= 1000;   
+                            
                             _gyroX.push_back ( ImVec2 ( time, dataGyroX ) );
                             _gyroY.push_back ( ImVec2 ( time, dataGyroY ) );
                             _gyroZ.push_back ( ImVec2 ( time, dataGyroZ ) );
                             
-                            _accX.push_back ( ImVec2 ( time, dataAccX ) );
-                            _accY.push_back ( ImVec2 ( time, dataAccY ) );
-                            _accZ.push_back ( ImVec2 ( time, dataAccZ ) );
+                            _accX.push_back ( ImVec2 ( time, fdataAccX ) );
+                            _accY.push_back ( ImVec2 ( time, fdataAccY ) );
+                            _accZ.push_back ( ImVec2 ( time, fdataAccZ ) );
                         }
                 }
+                
+                // Kalman Relialisation
+//                 {
+//                     Kalman kalmanX;
+//                     Kalman kalmanY;
+//                     Kalman kalmanZ;
+//                     
+//                     double accXangle;
+//                     double accYangle;
+//                     double accZangle;
+//                     
+//                     double gyroXangle = 180;
+//                     double gyroYangle = 180;
+//                     double gyroZangle = 180;
+//                     double compAngleX = 180;
+//                     double compAngleY = 180;
+//                     double compAngleZ = 180;
+//                     double kalAngleX;
+//                     double kalAngleY;
+//                     double kalAngleZ;
+//                     
+//                     const int ANGLES_COUNT = _accX.size ();
+//                     double xAngles[ANGLES_COUNT];
+//                     double yAngles[ANGLES_COUNT];
+//                     double zAngles[ANGLES_COUNT];
+//                     
+//                     kalmanX.setAngle(180);
+//                     kalmanY.setAngle(180);
+//                     kalmanZ.setAngle(180);
+//                     
+//                     for ( int i = 0; i < ANGLES_COUNT; i++ )
+//                     {
+//                         xAngles[i] = gyroXangle;
+//                         yAngles[i] = gyroYangle;
+//                         zAngles[i] = gyroZangle;
+//                     }
+//                     
+//                     for (int i = 0; i < ANGLES_COUNT - 1; i++)
+//                     {
+//                         xAngles[i] = xAngles[i + 1];
+//                         yAngles[i] = yAngles[i + 1];
+//                         zAngles[i] = zAngles[i + 1];
+//                     }
+//                     xAngles[ANGLES_COUNT - 1] = gyroXangle;
+//                     yAngles[ANGLES_COUNT - 1] = gyroYangle;
+//                     zAngles[ANGLES_COUNT - 1] = gyroZangle;
+//                     
+//                     double expectationX = 0.0;
+//                     double expectationY = 0.0;
+//                     double expectationZ = 0.0;
+//                     
+//                     for (int i = 0; i < ANGLES_COUNT; i++)
+//                     {
+//                         expectationX += xAngles[i];
+//                         expectationY += yAngles[i];
+//                         expectationZ += zAngles[i];
+//                     }
+//                     expectationX /= ANGLES_COUNT;
+//                     expectationY /= ANGLES_COUNT;
+//                     expectationZ /= ANGLES_COUNT;
+//                     
+//                     double varianceX = 0.0;
+//                     double varianceY = 0.0;
+//                     double varianceZ = 0.0;
+//                     for (int i = 0; i < ANGLES_COUNT; i++)
+//                     {
+//                         varianceX += xAngles[i] * xAngles[i];
+//                         varianceY += yAngles[i] * yAngles[i];
+//                         varianceZ += zAngles[i] * zAngles[i];
+//                     }
+//                     varianceX -= ANGLES_COUNT * expectationX * expectationX;
+//                     varianceY -= ANGLES_COUNT * expectationY * expectationY;
+//                     varianceZ -= ANGLES_COUNT * expectationZ * expectationZ;
+//                     
+//                     varianceX /= ANGLES_COUNT - 1;
+//                     varianceY /= ANGLES_COUNT - 1;
+//                     varianceZ /= ANGLES_COUNT - 1;
+//                     
+//                     kalmanX.setQangle(varianceX);
+//                     kalmanY.setQangle(varianceY);
+//                     kalmanZ.setQangle(varianceZ);
+//                     
+//                     //
+//                     for ( int i = 0; i < ANGLES_COUNT; i++ )
+//                     {
+//                         kalmanX.setQangle(0.05);
+//                         kalmanY.setQangle(0.05);
+//                         kalmanZ.setQangle(0.05);
+//                         
+//                         accYangle = (atan2(_accX[i].y,_accZ[i].y)+M_PI)*RAD_TO_DEG;
+//                         accXangle = (atan2(_accY[i].y,_accZ[i].y)+M_PI)*RAD_TO_DEG;
+//                         accZangle = (atan2(_accX[i].y,_accY[i].y)+M_PI)*RAD_TO_DEG;
+//                         
+//                         double gyroXrate = (double)_gyroX[i].y/131.0;
+//                         double gyroYrate = -((double)_gyroY[i].y/131.0);
+//                         double gyroZrate = -((double)_gyroZ[i].y/131.0);
+//                         
+//                         gyroXangle += gyroXrate*((double)(_gyroX[i].x));
+//                         gyroYangle += gyroYrate*((double)(_gyroY[i].x));
+//                         gyroZangle += gyroZrate*((double)(_gyroZ[i].x));
+//                         
+//                         compAngleX = (0.9*(compAngleX+(gyroXrate*(double)(_gyroX[i].y))))+(0.1*accXangle);
+//                         compAngleY = (0.9*(compAngleY+(gyroYrate*(double)(_gyroY[i].y))))+(0.1*accYangle);
+//                         compAngleZ = (0.9*(compAngleZ+(gyroZrate*(double)(_gyroZ[i].y))))+(0.1*accZangle);
+//                         
+//                         kalAngleX = kalmanX.getAngle(accXangle, gyroXrate, (double)(_gyroX[i].y));
+//                         kalAngleY = kalmanY.getAngle(accYangle, gyroYrate, (double)(_gyroY[i].y));
+//                         kalAngleZ = kalmanZ.getAngle(accZangle, gyroZrate, (double)(_gyroZ[i].y));
+//                         
+//                         std::printf("gyroX: ");
+//                         std::printf("%g",accXangle);std::printf("\t");
+//                         std::printf("gyroY: ");
+//                         std::printf("%g",accYangle);std::printf("\t");
+//                         std::printf("gyroZ: ");
+//                         std::printf("%g",accZangle);std::printf("\t");
+//                         std::printf("accX: ");
+//                         std::printf("%g",gyroXangle);std::printf("\t");
+//                         std::printf("accY: ");
+//                         std::printf("%g",gyroYangle);std::printf("\t");
+//                         std::printf("accZ: ");
+//                         std::printf("%g",gyroZangle);std::printf("\t");
+//                         std::printf("compX: ");
+//                         std::printf("%g",compAngleX);std::printf("\t");
+//                         std::printf("compY: ");
+//                         std::printf("%g",compAngleY);std::printf("\t");
+//                         std::printf("compZ: ");
+//                         std::printf("%g",compAngleZ);std::printf("\t");
+//                         std::printf("KalmX: ");
+//                         std::printf("%g",kalAngleX);std::printf("\t");
+//                         std::printf("KalmY ");
+//                         std::printf("%g",kalAngleY);std::printf("\t");
+//                         std::printf("KalmZ ");
+//                         std::printf("%g",kalAngleZ);std::printf("\t");
+//                         std::printf("QangleX: ");
+//                         std::printf("%g",kalmanX.getQangle());std::printf("\t");
+//                         std::printf("QangleY ");
+//                         std::printf("%g",kalmanY.getQangle());std::printf("\t");
+//                         std::printf("QangleZ ");
+//                         std::printf("%g",kalmanZ.getQangle());std::printf("\n");
+//                     }
+//                }
+                
+                // Find Start Lockal Max
+                float low = _accY[0].y;
+                bool wait = false;
+                int last_max;
+                ImVector<int> samp_last_max;
+                for ( int i = 1; i < _accY.size () - 1; i++ )
+                {
+                    if (_accY[i-1].y < _accY[i].y && _accY[i].y > _accY[i+1].y && _accY[i].y > low + 0.05 && _accY[i].y < low + 0.1 && !wait )
+                    {
+                        //std::cout << _accY[i].x << std::endl;
+                        last_max = _accY[i].x;
+                        samp_last_max.push_back(last_max);
+                        wait = true;
+                        //visual.push_back ( ImVec2 ( _accY[i].x, ampl ) );
+                    }
+                    else
+                    {
+                        if ( low > _accY[0].y + 0.01 && low < _accY[0].y + 0.03 )
+                            low = _accY[i].y;
+                        //visual.push_back ( ImVec2 ( _accY[i].x, _accY[i].y ) );
+                        
+                        if ( _accY[i].x - last_max >= 1100 )
+                            wait = false;
+                    }
+                }
+                
+                for ( auto item : samp_last_max )
+                    std::cout << item << std::endl;
+                
+                // Fase Step Analising
+                bool start = false;
+                for ( int i = 0, j = 0, c = 1000; i < _accY.size () - 1; i++ )
+                {
+                    if ( _accY[i].x == samp_last_max[j] )
+                    {
+                        start = true;
+                        
+                        if ( j != samp_last_max.size () - 1 )
+                            j++;
+                    }
+                    else
+                        if ( !start )
+                            visual.push_back ( ImVec2 ( _accY[i].x, _accY[i].y ) );
+                    
+                    if ( start )
+                    {
+                        if ( _accY[i].y >= _low && _accY[i].y <= _hight )
+                            visual.push_back ( ImVec2 ( _accY[i].x, _accY[i].y ) );
+                        else
+                            visual.push_back ( ImVec2 ( _accY[i].x, ampl ) );
+                        
+                        if ( samp_last_max[j] - c == _accY[i].x  )
+                            start = false;
+                    }
+                }
+                
+                // for ( auto item : visual )
+                //     std::cout << item.x << " " << item.y << std::endl;
+                
+                // Algorim to CreateVisualization
+                // for ( int i = 0; i < _accY.size (); i++ )
+                // {
+                //     if ( _accY[i].y >= _low && _accY[i].y <= _hight )
+                //         visual.push_back ( ImVec2 ( _accY[i].x, _accY[i].y ) );
+                //     else
+                //         visual.push_back ( ImVec2 ( _accY[i].x, ampl ) );
+                // }
             }
+            
+            static bool GyroY_ImAxis_Y2 = false, GyroZ_ImAxis_Y3 = false;
+            
+            ImGui::Checkbox("GyroY ImAxis_Y2", &GyroY_ImAxis_Y2); ImGui::SameLine();
+            ImGui::Checkbox("GyroZ ImAxis_Y3", &GyroZ_ImAxis_Y3);
             
             if ( ImPlot::BeginPlot("GyroPlot", ImVec2(-1,600)) )
             {
-                ImPlot::SetupAxes ( "t, ms", "GyroX, N", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit );
+                ImPlot::SetupAxes ( "t, ms", "GyroX, degrees/ms", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit );
                 ImPlot::SetupAxesLimits(-100, 100, 0, 100000);
                 
-                ImPlot::SetupAxis ( ImAxis_Y2, "GyroY, N", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
-                ImPlot::SetupAxisLimits(ImAxis_Y2, -200, 200);
+                if ( GyroY_ImAxis_Y2 )
+                {
+                    ImPlot::SetupAxis ( ImAxis_Y2, "GyroY, degrees/ms", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
+                    ImPlot::SetupAxisLimits(ImAxis_Y2, -200, 200);
+                }
                 
-                ImPlot::SetupAxis ( ImAxis_Y3, "GyroZ, N", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
-                ImPlot::SetupAxisLimits(ImAxis_Y3, -200, 200);
-                
+                if ( GyroZ_ImAxis_Y3 )
+                {
+                    ImPlot::SetupAxis ( ImAxis_Y3, "GyroZ, degrees/ms", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
+                    ImPlot::SetupAxisLimits(ImAxis_Y3, -200, 200);
+                }
+
                 if ( !_gyroX.empty() && !_gyroY.empty() && !_gyroZ.empty() )
                 {
                     ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
                     ImPlot::PlotLine ( "Gyro X", &_gyroX[0].x, &_gyroX[0].y, _gyroX.size(), 0, 0, sizeof(ImVec2) );
                     
-                    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
+                    if ( GyroY_ImAxis_Y2 )
+                        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
                     ImPlot::PlotLine ( "Gyro Y", &_gyroY[0].x, &_gyroY[0].y, _gyroY.size(), 0, 0, sizeof(ImVec2) );
                     
-                    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y3);
+                    if ( GyroZ_ImAxis_Y3 )
+                        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y3);
                     ImPlot::PlotLine ( "Gyro Z", &_gyroZ[0].x, &_gyroZ[0].y, _gyroZ.size(), 0, 0, sizeof(ImVec2) );
                 }
                 ImPlot::EndPlot();
             }
             
+            static bool AccY_ImAxis_Y2 = false, AccZ_ImAxis_Y3 = false;
+            
+            ImGui::Checkbox("AccY ImAxis_Y2", &AccY_ImAxis_Y2); ImGui::SameLine();
+            ImGui::Checkbox("AccZ ImAxis_Y3", &AccZ_ImAxis_Y3);
+            
             if ( ImPlot::BeginPlot("AccPlot", ImVec2(-1,600)) )
             {
-                ImPlot::SetupAxes ( "t, ms", "AccX, N", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit );
+                ImPlot::SetupAxes ( "t, ms", "AccX, g", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit );
                 ImPlot::SetupAxesLimits(-100, 100, 0, 100000);
                 
-                ImPlot::SetupAxis ( ImAxis_Y2, "AccY, N", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
-                ImPlot::SetupAxisLimits(ImAxis_Y2, -200, 200);
+                if ( AccY_ImAxis_Y2 )
+                {
+                    ImPlot::SetupAxis ( ImAxis_Y2, "AccY, g", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
+                    ImPlot::SetupAxisLimits(ImAxis_Y2, -200, 200);
+                }
                 
-                ImPlot::SetupAxis ( ImAxis_Y3, "AccZ, N", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
-                ImPlot::SetupAxisLimits(ImAxis_Y3, -200, 200);
+                if ( AccZ_ImAxis_Y3 )
+                {
+                    ImPlot::SetupAxis ( ImAxis_Y3, "AccZ, g", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
+                    ImPlot::SetupAxisLimits(ImAxis_Y3, -200, 200);
+                }
                 
                 ImPlot::SetupAxesLimits(0, 15000, 0, 100000);
-                if ( !_accX.empty() && !_accY.empty() && !_accZ.empty() )
+                if ( !_accX.empty() && !_accY.empty() && !_accZ.empty() && !visual.empty() )
                 {
                     ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
                     ImPlot::PlotLine ( "Acc X", &_accX[0].x, &_accX[0].y, _accX.size(), 0, 0, sizeof(ImVec2) );
                     
-                    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
+                    if ( AccY_ImAxis_Y2 )
+                        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
                     ImPlot::PlotLine ( "Acc Y", &_accY[0].x, &_accY[0].y, _accY.size(), 0, 0, sizeof(ImVec2) );
+                    ImPlot::PlotLine ( "Visual Acc Y", &visual[0].x, &visual[0].y, visual.size(), 0, 0, sizeof(ImVec2) );
                     
-                    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y3);
+                    if ( AccZ_ImAxis_Y3 )
+                        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y3);
                     ImPlot::PlotLine ( "Acc Z", &_accZ[0].x, &_accZ[0].y, _accZ.size(), 0, 0, sizeof(ImVec2) );
                 }
                 ImPlot::EndPlot();
