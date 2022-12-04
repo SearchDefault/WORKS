@@ -35,6 +35,8 @@ namespace Renderer
 
     void WindowContext::SDL_init ( void )
     {
+        SDL_Init(SDL_INIT_VIDEO);
+        
         #if defined(IMGUI_IMPL_OPENGL_ES2)
         // GL ES 2.0 + GLSL 100
         this -> glsl_version = "#version 100";
@@ -71,9 +73,9 @@ namespace Renderer
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
         SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
         
-        this -> window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+        this -> window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED | SDL_WINDOW_ALLOW_HIGHDPI);
         
-        this -> window = SDL_CreateWindow("Server Sensor Device", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, DM.w, DM.h, window_flags);
+        this -> window = SDL_CreateWindow("Server Sensor Device", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, DM.w - 200, DM.h - 200, window_flags);
         
         this -> gl_context = SDL_GL_CreateContext(window);
         
@@ -110,7 +112,7 @@ namespace Renderer
 
     void WindowContext::Server_init ( void )
     {
-        this -> fman = std::make_shared<FileManager> ( "002.txt" );
+        this -> fman = std::make_shared<FileManager> ( "003.txt" );
         
         // Create Server Context
         this -> server = std::unique_ptr<TcpServer> ( new TcpServer (
@@ -204,7 +206,7 @@ namespace Renderer
 
         // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
         {
-            ImGui::Begin("Main Menu");                          // Create a window called "Hello, world!" and append into it.
+            ImGui::Begin("Main Menu", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_AlwaysAutoResize );                          // Create a window called "Hello, world!" and append into it.
 
             if ( !static_cast<int> ( server -> getStatus() ) )
                 ImGui::Text("Server is: %s", "Up" );            // Display some text (you can use a format strings too)
@@ -214,8 +216,8 @@ namespace Renderer
             ImGui::Text("Server listen on port: %d", server -> getPort() );
             ImGui::Text("Server handling thread pool size: %d", server -> getThreadPool().get_thread_count() );
             
-            ImGui::Checkbox("Demo Window", &show_demo_window);
-            ImGui::Checkbox("Plot Window", &show_plot_window);
+            //ImGui::Checkbox("Demo Window", &show_demo_window);
+            //ImGui::Checkbox("Plot Window", &show_plot_window);
             ImGui::Checkbox("Server Logger", &show_logger);
             ImGui::Checkbox("Data Plot", &show_data_plot);
             
@@ -276,10 +278,12 @@ namespace Renderer
             ImVec2 center = ImGui::GetMainViewport()->GetCenter();
             ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
             
-            static float _low = 0.3f, _hight = 0.45f;
-            static int ampl = 4.0;
+            static float _low = 0.25f, _hight = 0.4f;
+            static int ampl = 4.0, phase_min_len = 250, phase_counter = 4;
             ImGui::InputFloat("low", &_low, -1.0f, 1.0f, "%.3f");
             ImGui::InputFloat("hight", &_hight, -1.0f, 1.0f, "%.3f");
+            ImGui::InputInt("Phase Min Length", &phase_min_len, 0, 1000);
+            ImGui::InputInt("Phase Count", &phase_counter, 0, 4);
             ImGui::InputInt("ampl", &ampl, 0, 10);
             
             bool openFile = false;
@@ -537,13 +541,15 @@ namespace Renderer
                 bool wait = false;
                 int last_max;
                 ImVector<int> samp_last_max;
+                ImVector<double> samp_last_max_ind;
                 for ( int i = 1; i < _accY.size () - 1; i++ )
                 {
                     if (_accY[i-1].y < _accY[i].y && _accY[i].y > _accY[i+1].y && _accY[i].y > low + 0.05 && _accY[i].y < low + 0.1 && !wait )
                     {
                         //std::cout << _accY[i].x << std::endl;
                         last_max = _accY[i].x;
-                        samp_last_max.push_back(last_max);
+                        samp_last_max.push_back ( last_max );
+                        samp_last_max_ind.push_back ( i );
                         wait = true;
                         //visual.push_back ( ImVec2 ( _accY[i].x, ampl ) );
                     }
@@ -558,33 +564,42 @@ namespace Renderer
                     }
                 }
                 
-                for ( auto item : samp_last_max )
-                    std::cout << item << std::endl;
+                // for ( auto item : samp_last_max )
+                //     std::cout << item << std::endl;
                 
                 // Fase Step Analising
-                bool start = false;
-                for ( int i = 0, j = 0, c = 1000; i < _accY.size () - 1; i++ )
+                bool phase = false;
+                int last_point;
+                for ( int i = 0, j = 0, count_phase = 0; i < _accY.size (); i++ )
                 {
-                    if ( _accY[i].x == samp_last_max[j] )
-                    {
-                        start = true;
+                    if ( !phase )
+                        visual.push_back ( ImVec2 ( _accY[i].x, _accY[i].y ) );
                         
-                        if ( j != samp_last_max.size () - 1 )
-                            j++;
-                    }
-                    else
-                        if ( !start )
-                            visual.push_back ( ImVec2 ( _accY[i].x, _accY[i].y ) );
-                    
-                    if ( start )
+                    if ( !phase && i == samp_last_max_ind[j] )
                     {
-                        if ( _accY[i].y >= _low && _accY[i].y <= _hight )
+                        phase = true;
+                        count_phase++;
+                        visual.push_back ( ImVec2 ( _accY[i].x, ampl ) );
+                        last_point = _accY[i].x;
+                    }
+                    
+                    if ( phase )
+                    {
+                        if ( _accY[i].y >= _low && _accY[i].y <= _hight && last_point + phase_min_len <= _accY[i].x )
+                        {
+                            last_point = _accY[i].x;
+                            count_phase++;
                             visual.push_back ( ImVec2 ( _accY[i].x, _accY[i].y ) );
+                        }
                         else
                             visual.push_back ( ImVec2 ( _accY[i].x, ampl ) );
-                        
-                        if ( samp_last_max[j] - c == _accY[i].x  )
-                            start = false;
+                    }
+                    
+                    if ( count_phase >= phase_counter )
+                    {
+                        count_phase = 0;
+                        phase = false;
+                        j++;
                     }
                 }
                 
@@ -599,44 +614,6 @@ namespace Renderer
                 //     else
                 //         visual.push_back ( ImVec2 ( _accY[i].x, ampl ) );
                 // }
-            }
-            
-            static bool GyroY_ImAxis_Y2 = false, GyroZ_ImAxis_Y3 = false;
-            
-            ImGui::Checkbox("GyroY ImAxis_Y2", &GyroY_ImAxis_Y2); ImGui::SameLine();
-            ImGui::Checkbox("GyroZ ImAxis_Y3", &GyroZ_ImAxis_Y3);
-            
-            if ( ImPlot::BeginPlot("GyroPlot", ImVec2(-1,600)) )
-            {
-                ImPlot::SetupAxes ( "t, ms", "GyroX, degrees/ms", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit );
-                ImPlot::SetupAxesLimits(-100, 100, 0, 100000);
-                
-                if ( GyroY_ImAxis_Y2 )
-                {
-                    ImPlot::SetupAxis ( ImAxis_Y2, "GyroY, degrees/ms", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
-                    ImPlot::SetupAxisLimits(ImAxis_Y2, -200, 200);
-                }
-                
-                if ( GyroZ_ImAxis_Y3 )
-                {
-                    ImPlot::SetupAxis ( ImAxis_Y3, "GyroZ, degrees/ms", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
-                    ImPlot::SetupAxisLimits(ImAxis_Y3, -200, 200);
-                }
-
-                if ( !_gyroX.empty() && !_gyroY.empty() && !_gyroZ.empty() )
-                {
-                    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
-                    ImPlot::PlotLine ( "Gyro X", &_gyroX[0].x, &_gyroX[0].y, _gyroX.size(), 0, 0, sizeof(ImVec2) );
-                    
-                    if ( GyroY_ImAxis_Y2 )
-                        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
-                    ImPlot::PlotLine ( "Gyro Y", &_gyroY[0].x, &_gyroY[0].y, _gyroY.size(), 0, 0, sizeof(ImVec2) );
-                    
-                    if ( GyroZ_ImAxis_Y3 )
-                        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y3);
-                    ImPlot::PlotLine ( "Gyro Z", &_gyroZ[0].x, &_gyroZ[0].y, _gyroZ.size(), 0, 0, sizeof(ImVec2) );
-                }
-                ImPlot::EndPlot();
             }
             
             static bool AccY_ImAxis_Y2 = false, AccZ_ImAxis_Y3 = false;
@@ -678,6 +655,45 @@ namespace Renderer
                 }
                 ImPlot::EndPlot();
             }
+            
+            static bool GyroY_ImAxis_Y2 = false, GyroZ_ImAxis_Y3 = false;
+            
+            ImGui::Checkbox("GyroY ImAxis_Y2", &GyroY_ImAxis_Y2); ImGui::SameLine();
+            ImGui::Checkbox("GyroZ ImAxis_Y3", &GyroZ_ImAxis_Y3);
+            
+            if ( ImPlot::BeginPlot("GyroPlot", ImVec2(-1,600)) )
+            {
+                ImPlot::SetupAxes ( "t, ms", "GyroX, degrees/ms", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit );
+                ImPlot::SetupAxesLimits(-100, 100, 0, 100000);
+                
+                if ( GyroY_ImAxis_Y2 )
+                {
+                    ImPlot::SetupAxis ( ImAxis_Y2, "GyroY, degrees/ms", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
+                    ImPlot::SetupAxisLimits(ImAxis_Y2, -200, 200);
+                }
+                
+                if ( GyroZ_ImAxis_Y3 )
+                {
+                    ImPlot::SetupAxis ( ImAxis_Y3, "GyroZ, degrees/ms", ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_AuxDefault );
+                    ImPlot::SetupAxisLimits(ImAxis_Y3, -200, 200);
+                }
+
+                if ( !_gyroX.empty() && !_gyroY.empty() && !_gyroZ.empty() )
+                {
+                    ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
+                    ImPlot::PlotLine ( "Gyro X", &_gyroX[0].x, &_gyroX[0].y, _gyroX.size(), 0, 0, sizeof(ImVec2) );
+                    
+                    if ( GyroY_ImAxis_Y2 )
+                        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y2);
+                    ImPlot::PlotLine ( "Gyro Y", &_gyroY[0].x, &_gyroY[0].y, _gyroY.size(), 0, 0, sizeof(ImVec2) );
+                    
+                    if ( GyroZ_ImAxis_Y3 )
+                        ImPlot::SetAxes(ImAxis_X1, ImAxis_Y3);
+                    ImPlot::PlotLine ( "Gyro Z", &_gyroZ[0].x, &_gyroZ[0].y, _gyroZ.size(), 0, 0, sizeof(ImVec2) );
+                }
+                ImPlot::EndPlot();
+            }
+            
             
 //             ImGui::Text("Data accelerometer and gyroscope");
 //             static float history = 5000;
