@@ -11,16 +11,23 @@
 #include "FileManager.hpp"
 #include "Kalman.hpp"
 
+#include "../ImGuiFileDialog/ImGuiFileDialog.h"
+
 #include <cmath>
 
 // Links <SDL>
-#include <SDL.h>
+//#include <SDL.h>
+#include <SDL2/SDL.h>
 #if defined(IMGUI_IMPL_OPENGL_ES2)
-#include <SDL_opengles2.h>
+#include <SDL2/SDL_opengles2.h>
 #else
-#include <SDL_opengl.h>
+//#include <SDL_opengl.h>
+#include <SDL2/SDL_opengl.h>
 #endif
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace Renderer
 {
@@ -33,6 +40,9 @@ namespace Renderer
         ImVector<int>       LineOffsets; // Index to lines offset. We maintain this with AddLog() calls.
         bool                AutoScroll;  // Keep scrolling if already at the bottom.
         bool                ServerStartStop = false;
+        bool                Start = false;
+        bool                Stop = false;
+        bool                SaveInFile = false;
         
         ExampleAppLog()
         {
@@ -83,6 +93,12 @@ namespace Renderer
             bool copy = ImGui::Button("Copy");
             ImGui::SameLine();
             ImGui::Checkbox("Start Server", &ServerStartStop);
+            ImGui::SameLine();
+            ImGui::Checkbox("Save File", &SaveInFile);
+            ImGui::SameLine();
+            Start = ImGui::Button("Start");
+            ImGui::SameLine();
+            Stop = ImGui::Button("Stop");
             ImGui::SameLine();
             Filter.Draw("Filter", -100.0f);
 

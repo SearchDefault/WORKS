@@ -9,7 +9,8 @@
 #include <shared_mutex>
 
 #ifdef _WIN32 // Windows NT
-#include <WinSock2.h>
+//#include <WinSock2.h>
+#include <winsock2.h>
 #include <mstcpip.h>
 #else // *nix
 
@@ -74,7 +75,7 @@ public:
             handler_function_t handler = default_data_handler,
             con_handler_function_t connect_hndl = default_connsection_handler,
             con_handler_function_t disconnect_hndl = default_connsection_handler,
-            uint thread_count = std::thread::hardware_concurrency()
+            uint8_t thread_count = std::thread::hardware_concurrency() //uint
             );
 
   virtual ~TcpServer();
@@ -88,6 +89,7 @@ public:
   uint16_t getPort() const;
   uint16_t setPort(const uint16_t port);
   status getStatus() const {return _status;}
+  uint32_t getNumClients() const { return client_list.size(); }; // MB delete
 
   // Server status manip
   status start();

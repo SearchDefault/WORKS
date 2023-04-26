@@ -20,7 +20,7 @@ TcpServer::TcpServer(const uint16_t port,
                      handler_function_t handler,
                      con_handler_function_t connect_hndl,
                      con_handler_function_t disconnect_hndl,
-                     uint thread_count
+                     uint8_t thread_count
                      )
   : port(port),
     handler(handler),
@@ -208,7 +208,6 @@ void TcpServer::waitingDataLoop() {
   }
 
   if(_status == status::up)
-    //thread_pool.addJob([this](){waitingDataLoop();});
     thread_pool.add_task( [this](){waitingDataLoop();} );
 }
 

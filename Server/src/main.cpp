@@ -1,6 +1,10 @@
 #include "./Renderer/Renderer.hpp"
 
+#ifdef _WIN32
+int WINAPI WinMain ( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLine, int nCmdShow )
+#else
 int main ( int argv, char** argc )
+#endif
 {
     Renderer::WindowContext window;
 
@@ -12,7 +16,7 @@ int main ( int argv, char** argc )
 
     // Main loop
     bool done = false;
-    while (!done)
+    while ( !done )
     {
         window.Update ( done );
         window.Render ( done, show_plot_window, show_demo_window, show_logger, show_data_plot );

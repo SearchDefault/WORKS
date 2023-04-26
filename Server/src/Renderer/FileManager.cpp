@@ -25,17 +25,17 @@ bool FileManager::Open ( std::string path )
     return true;
 }
 
-// bool FileManager::SaveInFile ( std::string path = nullptr, std::string data = nullptr )
-// {
-//     if ( file.is_open () )
-//     {
-//         file << data << std::endl;
-//         
-//         return true;
-//     }
-//     
-//     return false;
-// }
+bool FileManager::SaveInFile ( std::string data = nullptr )
+{
+    if ( file.is_open () )
+    {
+        file << data << std::endl;
+        
+        return true;
+    }
+    
+    return false;
+}
 
 std::vector<std::string> FileManager::ReadInFile ()
 {

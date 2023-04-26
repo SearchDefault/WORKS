@@ -2,6 +2,8 @@
 #define GENERAL_H
 
 #ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #else
 #define SD_BOTH 0
 #include <sys/socket.h>
@@ -262,21 +264,19 @@ public:
 };
 
 #ifdef _WIN32 // Windows NT
-namespace {
 class _WinSocketIniter {
-  static WSAData w_data;
+  WSAData w_data = {0};
 public:
   _WinSocketIniter() {
-    WSAStartup(MAKEWORD(2, 2), &w_data)
+    WSAStartup(MAKEWORD(2, 2), &w_data);
   }
 
   ~_WinSocketIniter() {
-    WSACleanup()
+    WSACleanup();
   }
 };
 
 static inline _WinSocketIniter _winsock_initer;
-}
 #endif
 
 }
